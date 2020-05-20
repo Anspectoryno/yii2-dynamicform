@@ -1,4 +1,4 @@
-/**
+/*!
  * yii2-dynamic-form
  *
  * A jQuery plugin to clone form elements in a nested manner, maintaining accessibility.
@@ -8,9 +8,9 @@
 (function ($) {
     var pluginName = 'yiiDynamicForm';
 
-    var regexID = /^(.+?)([-\d-]{1,})(.+)$/i;
+    var regexID = /^(.+)-(\d.*)-(.+)$/i;
 
-    var regexName = /(^.+?)([\[\d{1,}\]]{1,})(\[.+\]$)/i;
+    var regexName = /(^.+?)(\[\d+\])(\[.+\]$)/i;
 
     $.fn.yiiDynamicForm = function (method) {
         if (methods[method]) {
@@ -22,6 +22,8 @@
             return false;
         }
     };
+
+    var widgetOptionsMap = {};
 
     var events = {
         beforeInsert: 'beforeInsert',
@@ -39,11 +41,11 @@
         },
 
         addItem: function (widgetOptions, e, $elem) {
-           _addItem(widgetOptions, e, $elem);
+            _addItem(widgetOptions, e, $elem);
         },
 
         deleteItem: function (widgetOptions, e, $elem) {
-           _deleteItem(widgetOptions, e, $elem);
+            _deleteItem(widgetOptions, e, $elem);
         },
 
         updateContainer: function () {
@@ -81,7 +83,7 @@
             } else if($(this).is('select')) {
                 $(this).find('option:selected').removeAttr("selected");
             } else {
-                $(this).val(''); 
+                $(this).val('');
             }
         });
 
@@ -111,26 +113,32 @@
         return new Array(level + 2).join('0').split('');
     };
 
-    var _addItem = function(widgetOptions, e, $elem) {
-        var count = _count($elem, widgetOptions);
+    var _addItem = function(widgetOptions, e, elem) {
+        var count = _count(elem, widgetOptions);
 
         if (count < widgetOptions.limit) {
-            $toclone = widgetOptions.template;
-            $newclone = $toclone.clone(false, false);
-
-            if (widgetOptions.insertPosition === 'top') {
-                $elem.closest('.' + widgetOptions.widgetContainer).find(widgetOptions.widgetBody).prepend($newclone);
+            if(widgetOptions.widgetContainer == 'dynamicform_wrapper') {
+                var toclone = $(widgetOptions.template);
+                toclone.find('input, textarea, select').each(function() {
+                    this.value = null
+                })
             } else {
-                $elem.closest('.' + widgetOptions.widgetContainer).find(widgetOptions.widgetBody).append($newclone);
+                var toclone = _parseTemplate(widgetOptions);
+            }
+            var newclone = toclone.clone(false, false);
+            if (widgetOptions.insertPosition === 'top') {
+                elem.closest('.' + widgetOptions.widgetContainer).find(widgetOptions.widgetBody).prepend(newclone);
+            } else {
+                elem.closest('.' + widgetOptions.widgetContainer).find(widgetOptions.widgetBody).append(newclone);
             }
 
             _updateAttributes(widgetOptions);
             _restoreSpecialJs(widgetOptions);
             _fixFormValidaton(widgetOptions);
-            $elem.closest('.' + widgetOptions.widgetContainer).triggerHandler(events.afterInsert, $newclone);
+            elem.closest('.' + widgetOptions.widgetContainer).triggerHandler(events.afterInsert, newclone);
         } else {
             // trigger a custom event for hooking
-            $elem.closest('.' + widgetOptions.widgetContainer).triggerHandler(events.limitReached, widgetOptions.limit);
+            elem.closest('.' + widgetOptions.widgetContainer).triggerHandler(events.limitReached, widgetOptions.limit);
         }
     };
 
@@ -192,14 +200,15 @@
         var widgetOptions = eval($elem.closest('div[data-dynamicform]').attr('data-dynamicform'));
         var id            = $elem.attr('id');
         var newID         = id;
+        var widgetRegexID = _getRegExpId($elem);
 
         if (id !== undefined) {
-            var matches = id.match(regexID);
+            var matches = id.match(widgetRegexID);
             if (matches && matches.length === 4) {
                 matches[2] = matches[2].substring(1, matches[2].length - 1);
                 var identifiers = matches[2].split('-');
                 identifiers[0] = index;
-                
+
                 if (identifiers.length > 1) {
                     var widgetsOptions = [];
                     $elem.parents('div[data-dynamicform]').each(function(i){
@@ -208,9 +217,7 @@
 
                     widgetsOptions = widgetsOptions.reverse();
                     for (var i = identifiers.length - 1; i >= 1; i--) {
-                        if(typeof widgetsOptions[i] !== 'undefined'){
-                          identifiers[i] = $elem.closest(widgetsOptions[i].widgetItem).index();
-                        }
+                        identifiers[i] = $elem.closest(widgetsOptions[i].widgetItem).index();
                     }
                 }
 
@@ -227,7 +234,7 @@
                 $(this).removeClass('field-' + id).addClass('field-' + newID);
             });
             // update "for" attribute
-            $elem.closest(widgetOptions.widgetItem).find("label[for='" + id + "']").attr('for',newID); 
+            $elem.closest(widgetOptions.widgetItem).find("label[for='" + id + "']").attr('for',newID);
         }
 
         return newID;
@@ -236,8 +243,15 @@
     var _updateAttrName = function($elem, index) {
         var name = $elem.attr('name');
 
+        var widgetsOptions = [];
+        $elem.parents('div[data-dynamicform]').each(function(i){
+            widgetsOptions[i] = eval($(this).attr('data-dynamicform'));
+        });
+
+        var widgetRegexName = _getRegExpName($elem);
+
         if (name !== undefined) {
-            var matches = name.match(regexName);
+            var matches = name.match(widgetRegexName);
 
             if (matches && matches.length === 4) {
                 matches[2] = matches[2].replace(/\]\[/g, "-").replace(/\]|\[/g, '');
@@ -245,11 +259,6 @@
                 identifiers[0] = index;
 
                 if (identifiers.length > 1) {
-                    var widgetsOptions = [];
-                    $elem.parents('div[data-dynamicform]').each(function(i){
-                        widgetsOptions[i] = eval($(this).attr('data-dynamicform'));
-                    });
-
                     widgetsOptions = widgetsOptions.reverse();
                     for (var i = identifiers.length - 1; i >= 1; i--) {
                         identifiers[i] = $elem.closest(widgetsOptions[i].widgetItem).index();
@@ -299,6 +308,7 @@
 
     var _fixFormValidaton = function(widgetOptions) {
         var widgetOptionsRoot = _getWidgetOptionsRoot(widgetOptions);
+        var widgetRegexID = new RegExp(widgetOptions['regexID'], 'i') || regexID;
 
         $(widgetOptionsRoot.widgetBody).find('input, textarea, select').each(function() {
             var id   = $(this).attr('id');
@@ -306,7 +316,7 @@
 
             if (id !== undefined && name !== undefined) {
                 currentWidgetOptions = eval($(this).closest('div[data-dynamicform]').attr('data-dynamicform'));
-                var matches = id.match(regexID);
+                var matches = id.match(widgetRegexID);
 
                 if (matches && matches.length === 4) {
                     matches[2]      = matches[2].substring(1, matches[2].length - 1);
@@ -322,12 +332,14 @@
 
     var _restoreKrajeeDepdrop = function($elem) {
         var configDepdrop = $.extend(true, {}, eval($elem.attr('data-krajee-depdrop')));
+
         var inputID = $elem.attr('id');
         var matchID = inputID.match(regexID);
 
         if (matchID && matchID.length === 4) {
             for (index = 0; index < configDepdrop.depends.length; ++index) {
                 var match = configDepdrop.depends[index].match(regexID);
+
                 if (match && match.length === 4) {
                     configDepdrop.depends[index] = match[1] + matchID[2] + match[3];
                 }
@@ -456,24 +468,60 @@
                     $(this).unbind();
                     _restoreKrajeeDepdrop($(this));
                 }
-                $.when($('#' + id).select2(configSelect2)).done(initS2Loading(id, '.select2-container--krajee'));
+                var s2LoadingFunc = typeof initSelect2Loading != 'undefined' ? initSelect2Loading : initS2Loading;
+                var s2OpenFunc = typeof initSelect2DropStyle != 'undefined' ? initSelect2Loading : initS2Loading;
+                $.when($('#' + id).select2(configSelect2)).done(s2LoadingFunc(id, '.select2-container--krajee'));
 
                 var kvClose = 'kv_close_' + id.replace(/\-/g, '_');
 
-                $('#' + id).on('select2:opening', function(ev) {
-                    initS2Open(id, kvClose, ev);
+                $('#' + id).on('select2-open', function() {
+                    initS2Open(id)
                 });
 
                 $('#' + id).on('select2:unselect', function() {
                     window[kvClose] = true;
                 });
+                $('#' + id).on('select2:opening', function(ev) {
+                    s2OpenFunc(id, kvClose, ev);
+                });
 
-               if (configDepdrop) {
-                    var loadingText = (configDepdrop.loadingText) ? configDepdrop.loadingText : 'Loading ...';
-                    initDepdropS2(id, loadingText);
+                if ($(this).attr('data-krajee-depdrop')) {
+                    $(this).on('depdrop.beforeChange', function(e,i,v) {
+                        var configDepdrop = eval($(this).attr('data-krajee-depdrop'));
+                        var loadingText = (configDepdrop.loadingText)? configDepdrop.loadingText : 'Loading ...';
+                        $('#' + id).select2('data', {text: loadingText});
+                    });
+                    $(this).on('depdrop.change', function(e,i,v,c) {
+                        $('#' + id).select2('val', $('#' + id).val());
+                    });
                 }
             });
         }
+    };
+
+    var _getRegExpId = function($elem) {
+        var widgetRegexId = _getWidgetOptions($elem)['regexID'];
+        if (widgetRegexId) {
+            return new RegExp(widgetRegexId, 'i');
+        } else {
+            return regexID;
+        }
+    };
+
+    var _getRegExpName = function($elem) {
+        var widgetRegexName = _getWidgetOptions($elem)['regexName'];
+        if (widgetRegexName) {
+            return new RegExp(widgetRegexName, 'i');
+        } else {
+            return regexName;
+        }
+    };
+
+    var _getWidgetOptions = function($elem) {
+        if (!widgetOptionsMap[$elem]) {
+            widgetOptionsMap[$elem] = eval($elem.closest('div[data-dynamicform]').attr('data-dynamicform'));
+        }
+        return widgetOptionsMap[$elem];
     };
 
 })(window.jQuery);
