@@ -1,9 +1,10 @@
-yii2-dynamicform (Fork version select2 bug fixed)
+yii2-dynamicform (Fork version nested forms fixed)
 ===================
+Now you can make an nested forms without bugs. Make sure your parent form has option "widgetContainer" => "dynamicform_wrapper"; This value is important;
 
-[![Latest Version](https://img.shields.io/github/release/dogrocker/yii2-dynamicform.svg?style=flat-square)](https://github.com/dogrocker/yii2-dynamicform/releases)
+[![Latest Version](https://img.shields.io/github/release/Anspectoryno/yii2-dynamicform.svg?style=flat-square)](https://github.com/Anspectoryno/yii2-dynamicform/releases)
 [![Software License](http://img.shields.io/badge/license-BSD3-brightgreen.svg?style=flat-square)](LICENSE.md)
-[![Total Downloads](https://img.shields.io/packagist/dt/dogrocker/yii2-dynamicform.svg?style=flat-square)](https://packagist.org/packages/dogrocker/yii2-dynamicform)
+[![Total Downloads](https://img.shields.io/packagist/dt/Anspectoryno/yii2-dynamicform.svg?style=flat-square)](https://packagist.org/packages/Anspectoryno/yii2-dynamicform)
 
 
 It is widget to yii2 framework to clone form elements in a nested manner, maintaining accessibility.
@@ -17,13 +18,13 @@ The preferred way to install this extension is through [composer](http://getcomp
 Either run
 
 ```
-php composer.phar require --prefer-dist dogrocker/yii2-dynamicform "*"
+php composer.phar require --prefer-dist Anspectoryno/yii2-dynamicform "*"
 ```
 
 or add
 
 ```
-"dogrocker/yii2-dynamicform": "*"
+"Anspectoryno/yii2-dynamicform": "*"
 ```
 
 to the require section of your `composer.json` file.
